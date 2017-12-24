@@ -5071,6 +5071,60 @@ void Mob::CommonOutgoingHitSuccess(Mob* defender, DamageHitInfo &hit, ExtraAttac
 		hit.damage_done += extra;
 	}
 
+	if (IsClient()) {
+		int scalestat;
+		switch (hit.skill) {
+		case EQEmu::skills::Skill1HSlashing: // 1H Slashing
+			scalestat = GetSTR();
+			if (GetDEX() > GetSTR()) scalestat = GetDEX();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("1HS: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= floor(1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::Skill2HSlashing: // 2H Slashing
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("2HS: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::Skill1HPiercing: // Piercing
+			scalestat = GetDEX();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("1HP: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::Skill1HBlunt: // 1H Blunt
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("1HB: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::Skill2HBlunt: // 2H Blunt
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("2HB: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::Skill2HPiercing: // 2H Piercing
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("2HP: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		case EQEmu::skills::SkillHandtoHand:
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("H2H: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		default:
+			scalestat = GetSTR();
+			if (scalestat < 76) break;
+			Message(MT_FocusEffect, StringFormat("default: Hit did: %i Increased to: %i from scalestat.", hit.damage_done, hit.damage_done * floor(1 + ((scalestat - 75) / 5) * 0.01f)).c_str());
+			hit.damage_done *= (1 + ((scalestat - 75) / 5) * 0.01f);
+			break;
+		}// switch
+	}
 	// this appears where they do special attack dmg mods
 	int spec_mod = 0;
 	if (IsSpecialAttack(eSpecialAttacks::Rampage)) {
