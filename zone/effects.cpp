@@ -65,17 +65,6 @@ int32 Mob::GetActSpellDamage(uint16 spell_id, int32 value, Mob* target) {
 		chance += itembonuses.CriticalSpellChance + spellbonuses.CriticalSpellChance + aabonuses.CriticalSpellChance;
 		chance += itembonuses.FrenziedDevastation + spellbonuses.FrenziedDevastation + aabonuses.FrenziedDevastation;
 
-	if(IsClient()) {
-		int scalestat = GetINT();
-		int statdmg;
-		float multi;
-		if (scalestat < 76) scalestat = 75;
-		multi = (scalestat - 75) * 0.002f;
-		statdmg = floor(-value * multi);
-		Message(MT_FocusEffect, StringFormat("Spell: Damage: %i Increased by: %i by INT %i", -value, statdmg, scalestat).c_str());
-		value -= statdmg;
-	}
-
 	//Crtical Hit Calculation pathway
 	if (chance > 0 || (IsClient() && GetClass() == WIZARD && GetLevel() >= RuleI(Spells, WizCritLevel))) {
 
@@ -168,6 +157,17 @@ int32 Mob::GetActSpellDamage(uint16 spell_id, int32 value, Mob* target) {
 
 	if (IsNPC() && CastToNPC()->GetSpellScale())
 		value = int(static_cast<float>(value) * CastToNPC()->GetSpellScale() / 100.0f);
+
+	if (IsClient()) {
+		int scalestat = GetINT();
+		int statdmg;
+		float multi;
+		if (scalestat < 76) scalestat = 75;
+		multi = (scalestat - 75) * 0.002f;
+		statdmg = floor(-value * multi);
+		Message(MT_FocusEffect, StringFormat("Spell: Damage: %i Increased by: %i by INT %i", -value, statdmg, scalestat).c_str());
+		value -= statdmg;
+	}
 
 	return value;
 }
