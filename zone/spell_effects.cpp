@@ -243,6 +243,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 
 					//handles AAs and what not...
 					if(caster) {
+						Client * casterClient = caster->CastToClient();
 						dmg = caster->GetActSpellDamage(spell_id, dmg, this);
 						caster->ResourceTap(-dmg, spell_id);
 					}
@@ -256,9 +257,9 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 					if (!PassCastRestriction(false, spells[spell_id].base2[i], false))
 						break;
 
-					if(caster)
+					if (caster) {
 						dmg = caster->GetActSpellHealing(spell_id, dmg, this);
-
+					}
 					HealDamage(dmg, caster);
 				}
 
