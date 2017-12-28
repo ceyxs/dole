@@ -51,6 +51,10 @@ int32 Mob::GetActSpellDamage(uint16 spell_id, int32 value, Mob* target) {
 	int32 value_BaseEffect = 0;
 	int chance = 0;
 
+	if (IsClient()) { //.1% PER 5 CHA OVER 75
+		chance += ((GetCHA() - 75) * .0002f);
+	}
+
 	value_BaseEffect = value + (value*GetFocusEffect(focusFcBaseEffects, spell_id)/100);
 
 	// Need to scale HT damage differently after level 40! It no longer scales by the constant value in the spell file. It scales differently, instead of 10 more damage per level, it does 30 more damage per level. So we multiply the level minus 40 times 20 if they are over level 40.
@@ -185,6 +189,10 @@ int32 Mob::GetActDoTDamage(uint16 spell_id, int32 value, Mob* target) {
 	int16 chance = 0;
 	chance += itembonuses.CriticalDoTChance + spellbonuses.CriticalDoTChance + aabonuses.CriticalDoTChance;
 
+	if (IsClient()) { //.1% PER 5 CHA OVER 75
+		chance += ((GetCHA() - 75) * .0002f);
+	}
+
 	if (spellbonuses.CriticalDotDecay)
 		chance += GetDecayEffectValue(spell_id, SE_CriticalDotDecay);
 
@@ -296,6 +304,7 @@ int32 Mob::GetActSpellHealing(uint16 spell_id, int32 value, Mob* target) {
 	value = value_BaseEffect;
 
 	if (IsClient()) {
+		chance += ((GetCHA() - 75) * .0002f); //.1% CRIT PER 5 CHA OVER 75
 		int scalestat = GetWIS();
 		int healpts;
 		float multi;

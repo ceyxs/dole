@@ -205,6 +205,19 @@ int Mob::GetTotalToHit(EQEmu::skills::SkillType skill, int chance_mod)
 		aabonuses.HitChanceEffect[skill] +
 		spellbonuses.HitChanceEffect[skill];
 
+	if (IsClient()) {
+		int accstat = GetDEX();
+		if (accstat < 76) accstat = 75;
+		int bonusacc = floor((accstat - 75) * .2f);
+		Message(MT_FocusEffect, StringFormat("Accuracy: Increased by %i percent by DEX %i", bonusacc, accstat).c_str());
+
+		hit_bonus += bonusacc;
+
+	//	Client * accClient = CastToClient();
+	//	if (accClient->GetDEX() > 75) hit_bonus += floor((accClient->GetDEX() - 75) * .2f);
+	//	Message(MT_FocusEffect, StringFormat("Accuracy: Increased by %i by DEX %i", floor((accClient->GetDEX() - 75) * .2f), accClient->GetDEX()).c_str());
+	}
+
 	accuracy = (accuracy * (100 + hit_bonus)) / 100;
 
 	// TODO: April 2003 added an archery/throwing PVP accuracy penalty while moving, should be in here some where,
@@ -223,7 +236,7 @@ int Mob::GetTotalToHit(EQEmu::skills::SkillType skill, int chance_mod)
 int Mob::compute_defense()
 {
 	int defense = GetSkill(EQEmu::skills::SkillDefense) * 400 / 225;
-	defense += (8000 * (GetAGI() - 40)) / 36000;
+	//defense += (8000 * (GetAGI() - 40)) / 36000;
 	if (IsClient())
 		defense += CastToClient()->GetHeroicAGI() / 10;
 
@@ -4264,6 +4277,19 @@ void Mob::TryCriticalHit(Mob *defender, DamageHitInfo &hit, ExtraAttackOptions *
 	else if (GetClass() == ROGUE && GetLevel() >= 12 && hit.skill == EQEmu::skills::SkillThrowing)
 		innate_crit = true;
 
+	if (IsClient()) {
+		int critdif = 0;
+		if (hit.skill == EQEmu::skills::SkillArchery){
+			critdif = RuleI(Combat, ArcheryCritDifficulty);
+		}
+		else if (hit.skill == EQEmu::skills::SkillThrowing){
+			critdif = RuleI(Combat, ThrowingCritDifficulty);
+		}
+		else { critdif = RuleI(Combat, MeleeCritDifficulty); }
+
+		crit_chance += ((GetCHA() - 75) * .0002f) * critdif;
+	}
+
 	// we have a chance to crit!
 	if (innate_crit || crit_chance) {
 		int difficulty = 0;
@@ -4275,8 +4301,8 @@ void Mob::TryCriticalHit(Mob *defender, DamageHitInfo &hit, ExtraAttackOptions *
 			difficulty = RuleI(Combat, MeleeCritDifficulty);
 		int roll = zone->random.Int(1, difficulty);
 
-		int dex_bonus = GetDEX();
-		if (dex_bonus > 255)
+		int dex_bonus = crit_chance;
+		/*if (dex_bonus > 255)
 			dex_bonus = 255 + ((dex_bonus - 255) / 5);
 		dex_bonus += 45; // chances did not match live without a small boost
 
@@ -4285,7 +4311,7 @@ void Mob::TryCriticalHit(Mob *defender, DamageHitInfo &hit, ExtraAttackOptions *
 			dex_bonus = dex_bonus * 3 / 5;
 
 		if (crit_chance)
-			dex_bonus += dex_bonus * crit_chance / 100;
+			dex_bonus += dex_bonus * crit_chance / 100;*/
 
 		// check if we crited
 		if (roll < dex_bonus) {
@@ -5078,7 +5104,7 @@ void Mob::CommonOutgoingHitSuccess(Mob* defender, DamageHitInfo &hit, ExtraAttac
 		switch (hit.skill) {
 		case EQEmu::skills::Skill1HSlashing: // 1H Slashing
 			scalestat = GetSTR();
-			if (GetDEX() > GetSTR()) scalestat = GetDEX();
+			if (GetAGI() > GetSTR()) scalestat = GetAGI();
 			if (scalestat < 76) break;
 			multi = ((scalestat - 75) / 5) * 0.01f;
 			statdmg = floor(hit.damage_done * multi);
@@ -5096,7 +5122,7 @@ void Mob::CommonOutgoingHitSuccess(Mob* defender, DamageHitInfo &hit, ExtraAttac
 			hit.damage_done += statdmg;
 			break;
 		case EQEmu::skills::Skill1HPiercing: // Piercing
-			scalestat = GetDEX();
+			scalestat = GetAGI();
 			if (scalestat < 76) break;
 			multi = ((scalestat - 75) / 5) * 0.01f;
 			statdmg = floor(hit.damage_done * multi);
