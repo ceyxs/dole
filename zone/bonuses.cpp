@@ -1587,6 +1587,13 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 	if(!IsAISpellEffect && !IsValidSpell(spell_id))
 		return;
 
+	if (IsClient()) {
+		if (spell_id == 288) {
+			new_bonus->STR += floor(GetSTR() * 0.1f);
+			new_bonus->AC -= floor(GetAC() * 0.2f);
+		}
+	}
+
 	for (i = 0; i < EFFECT_COUNT; i++)
 	{
 		//Buffs/Item effects

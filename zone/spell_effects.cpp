@@ -233,6 +233,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 
 				// for offensive spells check if we have a spell rune on
 				int32 dmg = effect_value;
+
 				if(dmg < 0)
 				{
 					if (!PassCastRestriction(false, spells[spell_id].base2[i], true))
@@ -291,11 +292,13 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 				if(dmg < 0) {
 					if (!PassCastRestriction(false, spells[spell_id].base2[i], true))
 						break;
+					dmg = caster->GetActSpellDamage(spell_id, dmg, this);
 					dmg = -dmg;
 					Damage(caster, dmg, spell_id, spell.skill, false, buffslot, false);
 				} else {
 					if (!PassCastRestriction(false, spells[spell_id].base2[i], false))
 						break;
+					dmg = caster->GetActSpellHealing(spell_id, dmg, this);
 					HealDamage(dmg, caster);
 				}
 				break;
@@ -1146,6 +1149,9 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 				snprintf(effect_desc, _EDLEN, "Mesmerize");
 #endif
 				Mesmerize();
+				if (IsNPC()) {
+					 
+				}
 				break;
 			}
 
@@ -1573,6 +1579,26 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 #ifdef SPELL_EFFECT_SPAM
 				snprintf(effect_desc, _EDLEN, "Reclaim Pet");
 #endif
+				if (spells[spell_id].max[i] != 0) {
+					if (
+						caster &&					// there's a caster
+						caster->GetTempPetCount() > 0 //has temp pets active
+						)
+						{
+						auto &listswarm = entity_list.GetMobList();
+						for (auto itr =listswarm.begin(); itr != listswarm.end(); ++itr) {
+							Mob* mob = itr->second;
+							if (mob->IsTempPet() && mob->GetOwner() == caster) {
+								int healamt = floor(mob->GetMaxHP() * spells[spell_id].max[i]);
+								caster->HealDamage(healamt, caster); // heal for max * mob max hp
+								caster->SendHPUpdate();
+								caster->Message(MT_FocusEffect, StringFormat("%s healed you for %i", spells[spell_id].name, healamt).c_str());
+								mob->CastToNPC()->Depop();
+								break;//so we dont kill multiple swarm pets
+								}
+							}
+						}
+				}
 				if
 				(
 					IsNPC() &&
@@ -1909,6 +1935,40 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 #ifdef SPELL_EFFECT_SPAM
 				snprintf(effect_desc, _EDLEN, "Lull");
 #endif
+				if (spell_id == 8563) {//detonate runes runic mechanic
+					int mob_buff_count = GetMaxTotalSlots();
+					int runespopped = 0;
+					for (int j = 0; j < mob_buff_count; j++) {
+						int mob_buff_id = buffs[j].spellid;
+						if (mob_buff_id == SPELL_UNKNOWN) continue; //make sure valid buff
+						if (buffs[j].casterid < 1) continue; // make sure valid caster id
+						if (caster->GetID() != buffs[j].casterid) continue;// make sure caster casted the buff
+						//new runes here
+						if (mob_buff_id == 41) { //explosive runes
+							caster->SpellOnTarget(286, this);
+							BuffFadeBySlot(j);
+							runespopped++;
+						}
+						if (mob_buff_id == 293) { //healing runes
+							caster->SpellOnTarget(294, this);
+							BuffFadeBySlot(j);
+							runespopped++;
+						}
+						if (mob_buff_id == 304) { //explosive runes ii
+							caster->SpellOnTarget(305, this);
+							BuffFadeBySlot(j);
+							runespopped++;
+						}
+						if (mob_buff_id == 21) { //explosive runes ii
+							caster->SpellOnTarget(22, this);
+							BuffFadeBySlot(j);
+							runespopped++;
+						}
+					}
+					BuffFadeBySpellIDAndCaster(41, caster->GetID());
+					caster->Message(MT_FocusEffect, StringFormat("Detonated %i runes on target.", runespopped).c_str());
+					break;
+				}
 				// TODO: check vs. CHA when harmony effect failed, if caster is to be added to hatelist
 				break;
 			}
@@ -2318,6 +2378,32 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
 					caster->DoArcheryAttackDmg(this, nullptr, nullptr, spells[spell_id].base[i],spells[spell_id].base2[i],focus,  ReuseTime);
 					break;
 				default:
+					if (caster->IsClient()) {
+						if (spells[spell_id].max[i] == 9) {
+							Client * casterClient = caster->CastToClient();
+							auto inst = casterClient->GetInv().GetItem(EQEmu::inventory::slotPrimary);
+							if (inst) {
+								int skilldmg = inst->GetItemWeaponDamage(true);
+								skilldmg = floor(skilldmg / 2);
+								if (skilldmg < 1) skilldmg = 1;
+								caster->Message(MT_FocusEffect, StringFormat("Rapid Strike: Attacked as if a %i damage weapon.", skilldmg).c_str());
+								caster->DoMeleeSkillAttackDmg(this, skilldmg, spells[spell_id].skill, spells[spell_id].base2[i], focus, false, ReuseTime);
+								break;
+							}
+						}
+						if (spells[spell_id].max[i] == 10) {
+							Client * casterClient = caster->CastToClient();
+							auto inst = casterClient->GetInv().GetItem(EQEmu::inventory::slotPrimary);
+							if (inst) {
+								int skilldmg = inst->GetItemWeaponDamage(true);
+								skilldmg = floor(skilldmg / 2);
+								if (skilldmg < 1) skilldmg = 1;
+								caster->Message(MT_FocusEffect, StringFormat("Whirlwind: Attacked as if a %i damage weapon.", skilldmg).c_str());
+								caster->DoMeleeSkillAttackDmg(this, skilldmg, spells[spell_id].skill, spells[spell_id].base2[i], focus, false, ReuseTime);
+								break;
+							}
+						}
+					}
 					caster->DoMeleeSkillAttackDmg(this, spells[spell_id].base[i], spells[spell_id].skill, spells[spell_id].base2[i], focus, false, ReuseTime);
 					break;
 				}
@@ -3536,6 +3622,11 @@ void Mob::DoBuffTic(const Buffs_Struct &buff, int slot, Mob *caster)
 			break;
 		}
 		case SE_HealOverTime: {
+			if (buff.spellid == 354) {
+				effect_value = floor((GetMaxHP() - GetHP()) * 0.05f); //5% missing hp a tick
+				HealDamage(effect_value, caster, buff.spellid);
+				break;
+			}
 			effect_value = CalcSpellEffectValue(buff.spellid, i, buff.casterlevel, buff.instrument_mod);
 			if (caster)
 				effect_value = caster->GetActSpellHealing(buff.spellid, effect_value);

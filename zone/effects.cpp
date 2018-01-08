@@ -162,7 +162,7 @@ int32 Mob::GetActSpellDamage(uint16 spell_id, int32 value, Mob* target) {
 	if (IsNPC() && CastToNPC()->GetSpellScale())
 		value = int(static_cast<float>(value) * CastToNPC()->GetSpellScale() / 100.0f);
 
-	if (IsClient()) {
+	if (IsClient() && target->IsNPC()) {
 		int scalestat = GetINT();
 		int statdmg;
 		float multi;
@@ -243,7 +243,19 @@ int32 Mob::GetActDoTDamage(uint16 spell_id, int32 value, Mob* target) {
 		value -= extra_dmg;
 	}
 
-	if (IsClient()) {
+	if (IsClient() && target->IsNPC()) {
+
+		if (spells[spell_id].numhits > 0 && spells[spell_id].numhitstype == 0) { //stackable dot
+			int mob_buff_count = target->GetMaxTotalSlots();
+			for (int j = 0; j < mob_buff_count; j++) {
+				int mob_buff_id = target->buffs[j].spellid;
+				if (mob_buff_id == spell_id) { //pull numhits from npc buffs, multiply by base value
+					value *= target->buffs[j].numhits;
+					break;
+				}
+			}
+		}
+
 		int scalestat = GetINT();
 		int statdmg;
 		float multi;

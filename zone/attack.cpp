@@ -510,8 +510,26 @@ bool Mob::AvoidDamage(Mob *other, DamageHitInfo &hit)
 	}
 
 	// Try Shield Block OR TwoHandBluntBlockCheck
-	if (HasShieldEquiped() && (aabonuses.ShieldBlock || spellbonuses.ShieldBlock || itembonuses.ShieldBlock) && (InFront || bBlockFromRear)) {
-		int chance = aabonuses.ShieldBlock + spellbonuses.ShieldBlock + itembonuses.ShieldBlock;
+	if (HasShieldEquiped() && (InFront || bBlockFromRear)) {
+		int chance;
+		if (aabonuses.ShieldBlock || spellbonuses.ShieldBlock || itembonuses.ShieldBlock) {
+			chance = aabonuses.ShieldBlock + spellbonuses.ShieldBlock + itembonuses.ShieldBlock;
+		}
+		if (IsClient()) { //1% shield block per shield ac
+			auto client = CastToClient();
+			auto inst = client->GetInv().GetItem(EQEmu::inventory::slotSecondary);
+			if (inst) {
+				if (inst->GetItemRecommendedLevel(true) <= GetLevel())
+					chance += inst->GetItemArmorClass(true);
+				else chance = client->CalcRecommendedLevelBonus(GetLevel(), inst->GetItemRecommendedLevel(true), inst->GetItemArmorClass(true));
+				
+				if (GetClass() == WARRIOR || GetClass() == SHADOWKNIGHT || GetClass() == PALADIN) {
+					if (chance > 50) chance = 50;
+				}
+				else if (chance > 20) chance = 20;
+			}	
+		}
+
 		if (counter_block || counter_all) {
 			float counter = (counter_block + counter_all) / 100.0f;
 			chance -= chance * counter;
@@ -3525,7 +3543,7 @@ void Mob::CommonDamage(Mob* attacker, int &damage, const uint16 spell_id, const 
 				can_stun = true;
 			}
 
-			if ((GetBaseRace() == OGRE || GetBaseRace() == OGGOK_CITIZEN) &&
+			if ((GetBaseRace() == OGGOK_CITIZEN) &&
 				!attacker->BehindMob(this, attacker->GetX(), attacker->GetY()))
 				can_stun = false;
 			if (GetSpecialAbility(UNSTUNABLE))

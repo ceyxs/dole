@@ -98,7 +98,7 @@ bool Beacon::Process()
 		{
 			// NPCs should never be affected by an AE they cast. PB AEs shouldn't affect caster either
 			// I don't think any other cases that get here matter
-			bool affect_caster = (!caster->IsNPC() && !caster->IsAIControlled()) && spells[spell_id].targettype != ST_AECaster;
+			bool affect_caster = false;
 			entity_list.AESpell(caster, this, spell_id, affect_caster, resist_adjust, &max_targets);
 		}
 		else

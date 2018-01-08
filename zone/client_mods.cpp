@@ -163,7 +163,7 @@ int32 Client::LevelRegen()
 	bool feigned = GetFeigned();
 	int level = GetLevel();
 	bool bonus = GetPlayerRaceBit(GetBaseRace()) & RuleI(Character, BaseHPRegenBonusRaces);
-	uint8 multiplier1 = bonus ? 2 : 1;
+	uint8 multiplier1 = bonus ? 1 : 1;
 	int32 hp = 0;
 	//these calculations should match up with the info from Monkly Business, which was last updated ~05/2008: http://www.monkly-business.net/index.php?pageid=abilities
 	if (level < 51) {

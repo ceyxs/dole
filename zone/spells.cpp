@@ -2245,7 +2245,7 @@ bool Mob::SpellFinished(uint16 spell_id, Mob *spell_target, CastingSlot slot, ui
 
 				// NPCs should never be affected by an AE they cast. PB AEs shouldn't affect caster either
 				// I don't think any other cases that get here matter
-				bool affect_caster = !IsNPC() && spells[spell_id].targettype != ST_AECaster;
+				bool affect_caster = false;
 
 				if (spells[spell_id].targettype == ST_AETargetHateList)
 					hate_list.SpellCast(this, spell_id, spells[spell_id].aoerange, ae_center);
@@ -2550,7 +2550,7 @@ bool Mob::ApplyNextBardPulse(uint16 spell_id, Mob *spell_target, CastingSlot slo
 			if(IsBeneficialSpell(spell_id))
 				SpellOnTarget(spell_id, this);
 
-			bool affect_caster = !IsNPC();	//NPC AE spells do not affect the NPC caster
+			bool affect_caster = false;	//NPC AE spells do not affect the NPC caster
 			entity_list.AEBardPulse(this, this, spell_id, affect_caster);
 			break;
 		}
@@ -2570,7 +2570,7 @@ bool Mob::ApplyNextBardPulse(uint16 spell_id, Mob *spell_target, CastingSlot slo
 			} else {
 				Log(Logs::Detail, Logs::Spells, "Bard Song Pulse: spell %d, AE with no target", spell_id);
 			}
-			bool affect_caster = !IsNPC();	//NPC AE spells do not affect the NPC caster
+			bool affect_caster = false;	//AE spells do not affect the caster. Fuck that.
 			entity_list.AEBardPulse(this, ae_center, spell_id, affect_caster);
 			break;
 		}
@@ -2821,7 +2821,7 @@ int CalcBuffDuration_formula(int level, int formula, int duration)
 		temp = 3 * level + 10;
 		break;
 	case 11:
-		temp = 30 * (level + 3);
+		temp = duration;
 		break;
 	case 12:
 		temp = level > 7 ? level / 4 : 1;
@@ -2871,7 +2871,36 @@ int Mob::CheckStackConflict(uint16 spellid1, int caster_level1, uint16 spellid2,
 
 	Log(Logs::Detail, Logs::Spells, "Check Stacking on old %s (%d) @ lvl %d (by %s) vs. new %s (%d) @ lvl %d (by %s)", sp1.name, spellid1, caster_level1, (caster1==nullptr)?"Nobody":caster1->GetName(), sp2.name, spellid2, caster_level2, (caster2==nullptr)?"Nobody":caster2->GetName());
 
-	if (spellid1 == spellid2 ) {
+	if (spellid1 == spellid2 ) { 
+		if (spellid2 == 41 || spellid2 == 293 || spellid2 == 304 || spellid2 == 21) { //explosive runes healing runes
+			int mob_buff_count = GetMaxTotalSlots();
+			for (int j = 0; j < mob_buff_count; j++) {
+				int mob_buff_id = buffs[j].spellid;
+				if (mob_buff_id == SPELL_UNKNOWN) continue; //make sure valid buff
+				if (buffs[j].casterid < 1) continue; // make sure valid caster id
+				if (caster2->GetID() != buffs[j].casterid) continue;// make sure caster casted the buff
+				if (mob_buff_id == spellid2) {
+					BuffFadeBySlot(j);
+				}
+			}
+			return 0;
+		}
+		if (spells[spellid2].numhits > 0 && spells[spellid2].numhitstype == 0) { //stacking dot
+			int mob_buff_count = GetMaxTotalSlots();
+			for (int j = 0; j < mob_buff_count; j++) {
+				int mob_buff_id = buffs[j].spellid;
+				if (mob_buff_id == SPELL_UNKNOWN) continue;
+				if (buffs[j].casterid < 1) continue; 
+				if (caster2->GetID() != buffs[j].casterid) continue;
+				if (mob_buff_id == spellid2) {
+					if (buffs[j].numhits < 5) {
+						buffs[j].numhits++; //increment numhits for a 'stack'
+					}
+					buffs[j].ticsremaining = spells[spellid2].buffduration; //refresh buff duration
+					return -1;
+				}
+			}
+		}
 		if (!IsStackableDot(spellid1) && !IsEffectInSpell(spellid1, SE_ManaBurn)) { // mana burn spells we need to use the stacking command blocks live actually checks those first, we should probably rework to that too
 			if (caster_level1 > caster_level2) { // cur buff higher level than new
 				if (IsEffectInSpell(spellid1, SE_ImprovedTaunt)) {
@@ -2888,6 +2917,18 @@ int Mob::CheckStackConflict(uint16 spellid1, int caster_level1, uint16 spellid2,
 		} else if (spellid1 == 2751) {
 			Log(Logs::Detail, Logs::Spells, "Blocking spell because manaburn does not stack with itself.");
 			return -1;
+		}
+	}
+
+	//prevent stacking of dots with same resist type from the same caster
+	if ((spells[spellid1].resisttype == spells[spellid2].resisttype) && (caster1 == caster2) && (IsEffectInSpell(spellid1, SE_CurrentHP)) && (IsEffectInSpell(spellid2, SE_CurrentHP))) {
+		if (caster_level1 > caster_level2) { // cur buff higher level than new
+			Log(Logs::Detail, Logs::Spells, "Spells the same but existing is higher level, stopping.");
+			return -1;
+		}
+		else {
+			Log(Logs::Detail, Logs::Spells, "Spells the same but newer is higher or equal level, overwriting.");
+			return 1;
 		}
 	}
 
@@ -5678,7 +5719,7 @@ void Mob::BuffModifyDurationBySpellID(uint16 spell_id, int32 newDuration)
 
 int Client::GetCurrentBuffSlots() const
 {
-	int numbuffs = 15;
+	int numbuffs = 25;
 	// client does check spells and items
 	numbuffs += aabonuses.BuffSlotIncrease + spellbonuses.BuffSlotIncrease + itembonuses.BuffSlotIncrease;
 	if (GetLevel() > 70)
